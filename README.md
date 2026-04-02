@@ -60,6 +60,22 @@ This is intentional: some channels are less reliable when a turn sends multiple 
 
 To set up and test this agent, refer to the [Configure Agent Testing](https://learn.microsoft.com/en-us/microsoft-agent-365/developer/testing?tabs=python) guide for complete instructions.
 
+### Optional: GitHub Remote MCP Server
+
+This sample can also connect directly to the GitHub Remote MCP server at `https://api.githubcopilot.com/mcp/` in addition to any Agent 365-managed MCP servers.
+
+Set one of these environment variables before starting the agent:
+
+- `GITHUB_REMOTE_MCP_TOKEN`: Preferred token for the GitHub Remote MCP server
+- `GITHUB_TOKEN` or `GH_TOKEN`: Supported fallbacks if you already use those names locally
+
+Optional environment variables:
+
+- `ENABLE_GITHUB_REMOTE_MCP=true`: Enables the GitHub Remote MCP server integration. Defaults to `true`.
+- `GITHUB_REMOTE_MCP_URL=https://api.githubcopilot.com/mcp/`: Overrides the default GitHub Remote MCP URL if needed.
+
+If no GitHub token is present, the agent skips the GitHub Remote MCP server and continues to load any other configured MCP servers.
+
 For a detailed explanation of the agent code and implementation, see the [Agent Code Walkthrough](AGENT-CODE-WALKTHROUGH.md).
 
 ## Support

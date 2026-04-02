@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
+import agent as agent_module
 from agent import LangChainAgent
 
 
@@ -16,6 +17,7 @@ def build_agent() -> LangChainAgent:
     agent.tool_service = None
     agent.tools = []
     agent.mcp_client = None
+    agent.mcp_clients = []
     agent.mcp_servers_initialized = True
     agent.chat_model = object()
     agent._conversation_histories = {}
@@ -118,3 +120,82 @@ async def test_process_user_message_isolates_conversation_history(
 
     assert [message.content for message in first_messages] == ["first thread"]
     assert [message.content for message in second_messages] == ["second thread"]
+
+
+def test_get_additional_mcp_server_configs_uses_github_remote_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    agent = build_agent()
+
+    monkeypatch.setenv("ENABLE_GITHUB_REMOTE_MCP", "true")
+    monkeypatch.setenv("GITHUB_REMOTE_MCP_TOKEN", "github-token")
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    monkeypatch.delenv("GH_TOKEN", raising=False)
+    monkeypatch.setattr(agent_module.Utility, "get_user_agent_header", lambda _name: "test-agent")
+
+    client_config = agent._get_additional_mcp_server_configs()
+
+    assert client_config == {
+        agent_module.GITHUB_REMOTE_MCP_SERVER_NAME: {
+            "transport": "http",
+            "url": agent_module.GITHUB_REMOTE_MCP_DEFAULT_URL,
+            "headers": {
+                "Authorization": "Bearer github-token",
+                "User-Agent": "test-agent",
+            },
+        }
+    }
+
+
+def test_get_additional_mcp_server_configs_skips_when_token_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    agent = build_agent()
+
+    monkeypatch.setenv("ENABLE_GITHUB_REMOTE_MCP", "true")
+    monkeypatch.delenv("GITHUB_REMOTE_MCP_TOKEN", raising=False)
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    monkeypatch.delenv("GH_TOKEN", raising=False)
+
+    assert agent._get_additional_mcp_server_configs() == {}
+
+
+@pytest.mark.asyncio
+async def test_load_tools_from_client_config_continues_after_server_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    agent = build_agent()
+
+    class FakeMCPClient:
+        def __init__(self, server_config: dict[str, dict[str, str]]) -> None:
+            self.server_config = server_config
+
+        async def get_tools(self) -> list[str]:
+            server_name = next(iter(self.server_config))
+            if server_name == agent_module.GITHUB_REMOTE_MCP_SERVER_NAME:
+                raise RuntimeError("GitHub MCP unavailable")
+            return [f"tool:{server_name}"]
+
+        async def aclose(self) -> None:
+            return None
+
+    monkeypatch.setattr(agent_module, "MultiServerMCPClient", FakeMCPClient)
+
+    tools = await agent._load_tools_from_client_config(
+        {
+            "mail": {
+                "transport": "http",
+                "url": "https://example.test/mail",
+                "headers": {},
+            },
+            agent_module.GITHUB_REMOTE_MCP_SERVER_NAME: {
+                "transport": "http",
+                "url": agent_module.GITHUB_REMOTE_MCP_DEFAULT_URL,
+                "headers": {},
+            },
+        }
+    )
+
+    assert tools == ["tool:mail"]
+    assert len(agent.mcp_clients) == 1
+    assert agent.mcp_client is agent.mcp_clients[0]
