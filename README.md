@@ -60,6 +60,17 @@ This is intentional: some channels are less reliable when a turn sends multiple 
 
 To set up and test this agent, refer to the [Configure Agent Testing](https://learn.microsoft.com/en-us/microsoft-agent-365/developer/testing?tabs=python) guide for complete instructions.
 
+## Aspire Telemetry
+
+This sample enables the Agent 365 observability exporter and also defaults OpenTelemetry export to an Aspire dashboard at `http://localhost:18889` using OTLP over gRPC.
+
+If you want to override that destination, set these environment variables before starting the agent:
+
+- `OTEL_EXPORTER_OTLP_ENDPOINT`
+- `OTEL_EXPORTER_OTLP_PROTOCOL`
+
+The sample `.env.template` includes the Aspire defaults.
+
 ### Optional: GitHub Remote MCP Server
 
 This sample can also connect directly to the GitHub Remote MCP server at `https://api.githubcopilot.com/mcp/` in addition to any Agent 365-managed MCP servers.

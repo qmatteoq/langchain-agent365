@@ -39,10 +39,17 @@ from microsoft_agents_a365.notifications.agent_notification import (
 )
 from microsoft_agents_a365.notifications import EmailResponse
 
-from microsoft_agents_a365.observability.core.config import configure
+from microsoft_agents_a365.observability.core.config import configure, get_tracer_provider
+from microsoft_agents_a365.observability.core.exporters.enriching_span_processor import (
+    _EnrichingBatchSpanProcessor,
+)
+from microsoft_agents_a365.observability.core.exporters.spectra_exporter_options import (
+    SpectraExporterOptions,
+)
 from microsoft_agents_a365.observability.core.middleware.baggage_builder import (
     BaggageBuilder,
 )
+from opentelemetry.sdk.trace.export import ConsoleSpanExporter
 from microsoft_agents_a365.runtime.environment_utils import (
     get_observability_authentication_scope,
 )
@@ -62,6 +69,21 @@ load_dotenv()
 agents_sdk_config = load_configuration_from_env(environ)
 
 
+def _configure_console_telemetry_exporter() -> None:
+    if os.getenv("ENABLE_CONSOLE_TELEMETRY_EXPORTER", "false").lower() != "true":
+        return
+
+    tracer_provider = get_tracer_provider()
+    if tracer_provider is None:
+        logger.warning("Console telemetry exporter requested before tracer provider was configured")
+        return
+
+    tracer_provider.add_span_processor(
+        _EnrichingBatchSpanProcessor(ConsoleSpanExporter())
+    )
+    logger.info("Console telemetry exporter enabled alongside OTLP export")
+
+
 # --- Public API ---
 def create_and_run_host(
     agent_class: type[AgentInterface], *agent_args, **agent_kwargs
@@ -72,10 +94,19 @@ def create_and_run_host(
             f"Agent class {agent_class.__name__} must inherit from AgentInterface"
         )
 
+    otlp_protocol = os.getenv("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc").lower()
+    exporter_protocol = "http" if otlp_protocol.startswith("http") else "grpc"
+
     configure(
         service_name="LangChainTracingWithAzureOpenAI",
         service_namespace="LangChainTesting",
+        exporter_options=SpectraExporterOptions(
+            endpoint=os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:18889"),
+            protocol=exporter_protocol,
+            insecure=os.getenv("OTEL_EXPORTER_OTLP_INSECURE", "true").lower() == "true",
+        ),
     )
+    _configure_console_telemetry_exporter()
 
     host = GenericAgentHost(agent_class, *agent_args, **agent_kwargs)
     auth_config = host.create_auth_configuration()

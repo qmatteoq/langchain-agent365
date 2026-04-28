@@ -5,6 +5,7 @@
             "name": "Python: Debug LangChain Agent Host",
             "type": "debugpy",
             "request": "launch",
+            "preLaunchTask": "Start Dev Tunnel",
             "program": "${workspaceFolder}/start_with_generic_host.py",
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",

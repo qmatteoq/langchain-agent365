@@ -1,0 +1,30 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Start Dev Tunnel",
+            "type": "shell",
+            "command": "devtunnel",
+            "args": [
+                "host",
+                "majestic-shoe-43268v6.euw"
+            ],
+            "isBackground": true,
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated"
+            },
+            "problemMatcher": {
+                "owner": "custom",
+                "pattern": {
+                    "regexp": ".*"
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": ".*Hosting port:.*",
+                    "endsPattern": ".*Ready to accept connections for tunnel: majestic-shoe-43268v6\\.euw.*"
+                }
+            }
+        }
+    ]
+}
