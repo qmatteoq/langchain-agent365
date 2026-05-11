@@ -8,7 +8,7 @@ authors = [
 dependencies = [
     # LangChain orchestrator
     "langchain>=1.0.0",
-    "langchain-openai>=0.3.0",
+    "langchain-openai>=1.1.14",
     "langchain-mcp-adapters>=0.2.2",
 
     # Microsoft Agents SDK - Official packages for hosting and integration
